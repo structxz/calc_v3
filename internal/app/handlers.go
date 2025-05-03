@@ -2,15 +2,19 @@ package server
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"time"
 
-	"distributed_calculator/internal/constants"
 	"distributed_calculator/internal/app/models"
+	"distributed_calculator/internal/constants"
+	"distributed_calculator/internal/db/sqlite"
+	"distributed_calculator/internal/jwt"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
+	"github.com/mattn/go-sqlite3"
 )
 
 func (s *Server) handleCalculate(w http.ResponseWriter, r *http.Request) {
@@ -194,4 +198,137 @@ func (s *Server) handleSubmitTaskResult(w http.ResponseWriter, r *http.Request) 
 		zap.Float64(constants.FieldResult, result.Result))
 
 	w.WriteHeader(http.StatusOK)
+}
+
+func (s *Server) handleRegister(w http.ResponseWriter, r *http.Request) {
+	request, err := checkRightCreds(w, r, s)
+	if err != nil {
+		return
+	}
+
+	user := models.User{
+		Login:    request.Login,
+		Password: request.Password,
+	}
+
+	db, ctx, err := sqlite.Open(s.logger)
+	if err != nil {
+		s.logger.Error(constants.ErrFailedSetDBConnection,
+			zap.Error(err))
+		s.writeError(w, http.StatusInternalServerError, constants.ErrFailedSetDBConnection)
+		return
+	}
+	defer db.Close()
+
+	err = sqlite.CreateTables(ctx, db, s.logger)
+	if err != nil {
+		s.logger.Error(constants.ErrFailedCreateTables,
+			zap.Error(err))
+		s.writeError(w, http.StatusInternalServerError, constants.ErrFailedCreateTables)
+		return
+	}
+
+	err = sqlite.InsertUser(ctx, db, s.logger, &user)
+	if err != nil {
+		if sqliteErr, ok := err.(sqlite3.Error); ok && sqliteErr.Code == sqlite3.ErrConstraint && sqliteErr.ExtendedCode == sqlite3.ErrConstraintUnique {
+			s.logger.Warn(constants.ErrAlreadyExistUserInDB)
+			s.writeError(w, http.StatusBadRequest, constants.ErrAlreadyExistsUserLogin)
+			return
+		}
+		s.logger.Error(constants.ErrFailedInsertUser,
+			zap.Error(err))
+		s.writeError(w, http.StatusInternalServerError, constants.ErrFailedInsertUser)
+		return
+	}
+
+	// TODO: add info logging
+	s.logger.Info(constants.LogRegistered,
+		zap.String(constants.FieldLogin, user.Login),
+		zap.String(constants.FieldPassword, user.Password))
+
+	w.WriteHeader(http.StatusOK)
+}
+
+func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
+	request, err := checkRightCreds(w, r, s)
+	if err != nil {
+		return
+	}
+
+	user := models.User{
+		Login:    request.Login,
+		Password: request.Password,
+	}
+
+	db, ctx, err := sqlite.Open(s.logger)
+	if err != nil {
+		s.logger.Error(constants.ErrFailedSetDBConnection,
+			zap.Error(err))
+		s.writeError(w, http.StatusInternalServerError, constants.ErrFailedSetDBConnection)
+		return
+	}
+	defer db.Close()
+
+	foundUser, err := sqlite.SelectUser(ctx, db, user.Login)
+	if err != nil {
+		s.logger.Warn(constants.ErrNoUserFound,
+			zap.Error(err))
+		s.writeError(w, http.StatusUnauthorized, constants.ErrNoUserFound)
+		return
+	}
+
+	if (foundUser.Login != user.Login) || (foundUser.Password != user.Password) {
+		s.logger.Error(constants.ErrInvalidLoginPassword,
+			zap.Error(err))
+		s.writeError(w, http.StatusUnauthorized, constants.ErrInvalidLoginPassword)
+		return
+	}
+
+	jwt, err := jwt.MakeJWT(s.logger, user.Login)
+	if err != nil {
+		s.logger.Error(constants.ErrInvalidLoginPassword,
+			zap.Error(err))
+		s.writeError(w, http.StatusUnauthorized, constants.ErrInvalidLoginPassword)
+		return
+	}
+
+	http.SetCookie(w, &http.Cookie{
+		Name:     "token",
+		Value:    jwt,
+		HttpOnly: true,
+		Secure:   true,
+		SameSite: http.SameSiteStrictMode,
+	})
+
+	// TODO: add info logging
+	s.logger.Info(constants.LogAuthenticated,
+		zap.String(constants.FieldLogin, user.Login),
+		zap.String(constants.FieldPassword, user.Password),
+		zap.String(constants.FieldJWT, jwt))
+
+	w.WriteHeader(http.StatusOK)
+}
+
+
+
+func checkRightCreds(w http.ResponseWriter, r *http.Request, s *Server) (models.RegisterRequest, error) {
+	var request models.RegisterRequest
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		s.logger.Error("Failed to decode request body",
+			zap.Error(err))
+		s.writeError(w, http.StatusBadRequest, constants.ErrInvalidRequestBody)
+		return request, errors.New("some error")
+	}
+
+	if request.Login == "" {
+		s.logger.Warn("Empty login received")
+		s.writeError(w, http.StatusBadRequest, constants.ErrInvalidRequestBody)
+		return request, errors.New("some error")
+	}
+	if request.Password == "" {
+		s.logger.Warn("Empty password received")
+		s.writeError(w, http.StatusBadRequest, constants.ErrInvalidRequestBody)
+		return request, errors.New("some error")
+	}
+	return request, nil
 }

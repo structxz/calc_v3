@@ -1,25 +1,38 @@
 package constants
 
 const (
-	ErrInvalidRequestBody      = "Invalid request body"
-	ErrExpressionNotFound      = "Expression not found"
-	ErrTaskNotFound            = "Task not found"
-	ErrFailedInitLogger        = "Failed to initialize logger: %v"
-	ErrFailedSyncLogger        = "Failed to sync logger: %v"
-	ErrFailedStartAgent        = "Failed to start agent"
-	ErrFailedCloseRespBody     = "Failed to close response body"
-	ErrUnexpectedStatusCode    = "unexpected status code: %d"
-	ErrFailedInitConfig        = "Failed to initialize config"
-	ErrUnexpectedToken         = "unexpected token"
-	ErrDivisionByZero          = "division by zero"
-	ErrModuloByZero            = "modulo by zero"
-	ErrInvalidModulo           = "modulo operation requires integer operands"
-	ErrUnexpectedEndExpr       = "unexpected end of expression"
-	ErrMissingCloseParen       = "missing closing parenthesis"
-	ErrFailedProcessExpression = "Failed to process expression"
-	ErrFailedProcessResult     = "Failed to process result"
-	ErrFailedStartServer       = "Failed to start server"
-	ErrServerShutdownFailed    = "Server shutdown failed"
+	ErrInvalidRequestBody           = "Invalid request body"
+	ErrExpressionNotFound           = "Expression not found"
+	ErrTaskNotFound                 = "Task not found"
+	ErrFailedInitLogger             = "Failed to initialize logger: %v"
+	ErrFailedSyncLogger             = "Failed to sync logger: %v"
+	ErrFailedStartAgent             = "Failed to start agent"
+	ErrFailedCloseRespBody          = "Failed to close response body"
+	ErrUnexpectedStatusCode         = "unexpected status code: %d"
+	ErrFailedInitConfig             = "Failed to initialize config"
+	ErrUnexpectedToken              = "unexpected token"
+	ErrDivisionByZero               = "division by zero"
+	ErrModuloByZero                 = "modulo by zero"
+	ErrInvalidModulo                = "modulo operation requires integer operands"
+	ErrUnexpectedEndExpr            = "unexpected end of expression"
+	ErrMissingCloseParen            = "missing closing parenthesis"
+	ErrFailedProcessExpression      = "Failed to process expression"
+	ErrFailedProcessResult          = "Failed to process result"
+	ErrFailedStartServer            = "Failed to start server"
+	ErrServerShutdownFailed         = "Server shutdown failed"
+	ErrFailedOpenDB                 = "Failed to open database"
+	ErrFailedVerifyDBConnection     = "Failed to verify database connection"
+	ErrFailedSetDBConnection        = "Failed to set database connection"
+	ErrFailedCreateTables           = "Failed to create db tables"
+	ErrFailedCreateUsersTable       = "Failed to create db table with users"
+	ErrFailedCreateExpressionsTable = "Failed to create db table with expressions"
+	ErrFailedInsertUser             = "Failed to insert user in table users"
+	ErrFailedSelectUser             = "Failed to select user from users database"
+	ErrAlreadyExistUserInDB         = "this user already exists"
+	ErrAlreadyExistsUserLogin       = "This user already exists. Choose another login"
+	ErrInvalidLoginPassword         = "Incorrect login or password"
+	ErrJWTNotSet                    = "jwt token is not set, set it in .env file"
+	ErrNoUserFound                  = "No user found with this login"
 )
 
 // Log messages used for logging application events.
@@ -42,6 +55,9 @@ const (
 	LogFailedUpdateStatusNotFound = "Failed to update expression status: expression not found"
 	LogListedAllExpressions       = "Listed all expressions"
 	LogFailedParseExpression      = "Failed to parse expression"
+	LogEmptyPasswordReceived      = "Empty password received"
+	LogRegistered                 = "Registration was successful"
+	LogAuthenticated              = "Authentication was successful"
 )
 
 // HTTP headers and content types used in the application.
@@ -78,6 +94,9 @@ const (
 	FieldComputingPower  = "computing_power"
 	FieldOrchestratorURL = "orchestrator_url"
 	FieldID              = "id"
+	FieldLogin           = "login"
+	FieldPassword        = "password"
+	FieldJWT             = "jwt_token"
 )
 
 // Parser log messages used during expression parsing.

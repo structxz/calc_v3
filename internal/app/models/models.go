@@ -58,3 +58,22 @@ type ExpressionsResponse struct {
 type TaskResponse struct {
 	Task Task `json:"task"`
 }
+
+type User struct {
+	Login string `json:"login"`
+	Password string `json:"password"`
+}
+
+type RegisterRequest struct {
+	Login string `json:"login"`
+	Password string `json:"password"`
+}
+
+type RegisterResponse struct {
+	status string `json:"status"`
+}
+
+type AuthResponse struct {
+	status string `json:"status"`
+	token string `json:"token"`
+}

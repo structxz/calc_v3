@@ -1,119 +1,94 @@
 package sqlite
 
 import (
-	"context"
 	"database/sql"
-	"distributed_calculator/internal/app/models"
 	"distributed_calculator/internal/constants"
 	"distributed_calculator/internal/logger"
-	"errors"
-	"fmt"
-
-	"github.com/mattn/go-sqlite3"
 	"go.uber.org/zap"
 )
 
-type DB struct {
-	*sql.DB
+type SQLiteStorage struct {
+	Db *sql.DB
 }
 
-func Open(logger *logger.Logger) (*sql.DB, context.Context, error){
-	ctx := context.TODO()
-	
-	db, err := sql.Open("sqlite3", "users.db")
+func New(logger *logger.Logger) (*SQLiteStorage, error) {
+	db, err := sql.Open("sqlite3", "sqlite.db")
 	if err != nil {
 		logger.Error(constants.ErrFailedOpenDB,
 			zap.Error(err))
-		return nil, nil, err
+		return nil, err
 	}
 
-	err = db.PingContext(ctx)
-	if err != nil {
+	if err := db.Ping(); err != nil {
 		logger.Error(constants.ErrFailedVerifyDBConnection,
 			zap.Error(err))
+		return nil, err
 	}
-	return db, ctx, nil
+
+	return &SQLiteStorage{
+		Db: db,
+	}, nil
 }
 
-func CreateTables(ctx context.Context, db *sql.DB, logger *logger.Logger) error {
-	const (
-		usersTable = `
+func RunMigrations(logger *logger.Logger, db *sql.DB) error {
+	schema := `
+	CREATE TABLE IF NOT EXISTS expressions (
+		id TEXT PRIMARY KEY,
+		expression TEXT NOT NULL,
+		status TEXT NOT NULL,
+		result REAL,
+		error TEXT,
+		created_at DATETIME NOT NULL,
+		updated_at DATETIME NOT NULL
+	);
+
+	CREATE TABLE IF NOT EXISTS tasks (
+		id TEXT UNIQUE PRIMARY KEY,
+		expression_id TEXT NOT NULL,
+		operation TEXT NOT NULL,
+		arg1 REAL NOT NULL,
+		arg2 REAL,
+		result REAL,
+		status TEXT NOT NULL,
+		error TEXT,
+		created_at DATETIME NOT NULL,
+		updated_at DATETIME NOT NULL,
+		FOREIGN KEY (expression_id) REFERENCES expressions(id)
+	);
+
+	CREATE TABLE IF NOT EXISTS task_dependencies (
+		task_id TEXT NOT NULL,
+		dependency_id TEXT NOT NULL,
+		FOREIGN KEY (task_id) REFERENCES tasks(id),
+		FOREIGN KEY (dependency_id) REFERENCES tasks(id),
+		PRIMARY KEY (task_id, dependency_id)
+	);	
+
 	CREATE TABLE IF NOT EXISTS users(
 		login TEXT NOT NULL COLLATE NOCASE UNIQUE,
 		password TEXT NOT NULL
-	);`
+	);
+	`
 
-		expressionsTable = `
-	CREATE TABLE IF NOT EXISTS expressions(
-		id UUID PRIMARY KEY,
-    	expression TEXT,
-    	status TEXT NOT NULL,
-    	result DOUBLE PRECISION,
-    	error TEXT
-	);`
-	)
-
-	if _, err := db.ExecContext(ctx, usersTable); err != nil {
-		logger.Error("Failed to create users table",
+	_, err := db.Exec(schema)
+	if err != nil {
+		logger.Error("failed to run migrations",
 			zap.Error(err))
 		return err
 	}
 
-	if _, err := db.ExecContext(ctx, expressionsTable); err != nil {
-		logger.Error("Failed to create expressions table",
-			zap.Error(err))
-		return err
-	}
-
+	logger.Info("Database migration completed successfully")
 	return nil
 }
 
-func InsertUser(ctx context.Context, db *sql.DB, logger *logger.Logger, user *models.User) error {
-	var q = `
-	INSERT INTO users (login, password) values ($1, $2)
-	`
-	_, err := db.ExecContext(ctx, q, user.Login, user.Password)
-	if err != nil {
-		if sqliteErr, ok := err.(sqlite3.Error); ok && sqliteErr.Code == sqlite3.ErrConstraint && sqliteErr.ExtendedCode == sqlite3.ErrConstraintUnique {
-			return err
-		}
-		logger.Error(fmt.Sprintf("Failed to insert user (login: %s)", user.Login),
-			zap.Error(err))
-		return err
-	}
-
-	return nil
+func (db *SQLiteStorage) Close() error {
+	return db.Db.Close()
 }
 
-func InsertExpression(ctx context.Context, db *sql.DB, expression *models.Expression) (int64, error) {
-	var q = `
-	INSERT INTO expressions (id, expression, status, result, error) values ($1, $2, $3, $4, $5)
-	`
-	result, err := db.ExecContext(ctx, q, expression.ID, expression.Expression, expression.Status, expression.Result, expression.Error)
-	if err != nil {
-		return 0, err
+// nullFloat возвращает sql.NullFloat64, где Valid == true только если arg не равен 0.
+func nullFloat(f float64) sql.NullFloat64 {
+	return sql.NullFloat64{
+		Float64: f,
+		Valid:   true,
 	}
-	id, err := result.LastInsertId()
-	if err != nil {
-		return 0, err
-	}
-
-	return id, nil
-}
-
-func SelectUser(ctx context.Context, db *sql.DB, login string) (*models.User, error) {
-	const query = `SELECT login, password FROM users WHERE login = ?`
-
-    row := db.QueryRowContext(ctx, query, login)
-
-    var user models.User
-    err := row.Scan(&user.Login, &user.Password)
-    if err != nil {
-        if errors.Is(err, sql.ErrNoRows) {
-            return nil, nil // пользователь не найден
-        }
-        return nil, err // другая ошибка
-    }
-
-    return &user, nil
 }

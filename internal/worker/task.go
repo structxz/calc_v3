@@ -14,7 +14,7 @@ import (
 )
 
 func (a *Agent) getTask() (*models.Task, error) {
-	resp, err := a.httpClient.Get(fmt.Sprintf(constants.PathInternalTask, a.config.OrchestratorURL))
+	resp, err := a.httpClient.Get(fmt.Sprintf("%s/internal/task", a.config.OrchestratorURL))
 	if err != nil {
 		return nil, err
 	}
@@ -52,7 +52,7 @@ func (a *Agent) sendResult(taskID string, result float64) error {
 	}
 
 	resp, err := a.httpClient.Post(
-		fmt.Sprintf(constants.PathInternalTask, a.config.OrchestratorURL),
+		fmt.Sprintf("%s/internal/task", a.config.OrchestratorURL),
 		constants.ContentTypeJSON,
 		bytes.NewBuffer(body),
 	)

@@ -5,29 +5,29 @@ import (
 	"net/http"
 	"time"
 
-	"distributed_calculator/internal/constants"
 	"distributed_calculator/configs"
+	"distributed_calculator/internal/constants"
+	"distributed_calculator/internal/db/sqlite"
 	"distributed_calculator/internal/logger"
-	"distributed_calculator/internal/app/storage"
 
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 )
 
-// Server представляет собой HTTP-сервер с его конфигурацией, хранилищем и регистратором.
+// Server is an HTTP server with its configuration, storage, and registrar
 type Server struct {
 	config  *configs.ServerConfig
-	storage *storage.Storage
+	sqlite  *sqlite.SQLiteStorage
 	logger  *logger.Logger
 	server  *http.Server
 }
 
 // New creates a new Server instance with the provided configuration and logger.
-func New(cfg *configs.ServerConfig, log *logger.Logger) *Server {
+func New(cfg *configs.ServerConfig, log *logger.Logger, sqliteStorage *sqlite.SQLiteStorage) *Server {
 	s := &Server{
 		config:  cfg,
-		storage: storage.New(log.Logger),
 		logger:  log,
+		sqlite: sqliteStorage,
 	}
 
 	router := mux.NewRouter()
@@ -40,16 +40,8 @@ func New(cfg *configs.ServerConfig, log *logger.Logger) *Server {
 	api.HandleFunc("/login", s.handleLogin).Methods(http.MethodPost)
 
 	internal := router.PathPrefix("/internal").Subrouter()
-	internal.HandleFunc(constants.PathTask, s.handleGetTask).Methods(http.MethodGet)
-	internal.HandleFunc(constants.PathTask, s.handleSubmitTaskResult).Methods(http.MethodPost)
-
-
-	fs := http.FileServer(http.Dir("./web"))
-	router.PathPrefix("/web/").Handler(http.StripPrefix("/web/", fs))
-
-	router.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		http.Redirect(w, r, "/web/calculate", http.StatusMovedPermanently)
-	})
+	internal.HandleFunc("/task", s.handleGetTask).Methods(http.MethodGet)
+	internal.HandleFunc("/task", s.handleSubmitTaskResult).Methods(http.MethodPost)
 
 	s.server = &http.Server{
 		Addr:         ":" + cfg.Port,
@@ -68,9 +60,23 @@ func New(cfg *configs.ServerConfig, log *logger.Logger) *Server {
 	return s
 }
 
-// GetHandler returns the HTTP handler for the server.
 func (s *Server) GetHandler() http.Handler {
 	return s.server.Handler
+}
+
+func (s *Server) InitDB(logger *logger.Logger) *sqlite.SQLiteStorage {
+	sqliteStorage, err := sqlite.New(logger)
+	if err != nil {
+		logger.Fatal("Could not initialize database",
+			zap.Error(err))
+	}
+
+	// Run migrations
+	if err := sqlite.RunMigrations(logger, sqliteStorage.Db); err != nil {
+		logger.Fatal("Migration failed",
+			zap.Error(err))
+	}
+	return sqliteStorage
 }
 
 // Start begins listening on the configured port and serves HTTP requests.

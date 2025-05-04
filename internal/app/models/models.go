@@ -4,34 +4,34 @@ import (
 	"time"
 )
 
-type ExpressionStatus string
-
-const (
-	StatusPending ExpressionStatus = "PENDING"
-	StatusProgress ExpressionStatus = "IN_PROGRESS"
-	StatusComplete ExpressionStatus = "COMPLETE"
-	StatusError ExpressionStatus = "ERROR"
+var (
+	StatusPending  string = "PENDING"
+	StatusProgress string = "IN_PROGRESS"
+	StatusComplete string = "COMPLETE"
+	StatusError    string = "ERROR"
 )
 
 type Expression struct {
-	ID         string           `json:"id"`
-	Expression string           `json:"expression,omitempty"`
-	Status     ExpressionStatus `json:"status"`
-	Result     *float64         `json:"result,omitempty"`
-	CreatedAt  time.Time        `json:"-"`
-	UpdatedAt  time.Time        `json:"-"`
-	Error      string           `json:"error,omitempty"`
+	ID         string    `json:"id"`
+	Expression string    `json:"expression,omitempty"`
+	Status     string    `json:"status"`
+	Result     *float64  `json:"result,omitempty"`
+	CreatedAt  time.Time `json:"-"`
+	UpdatedAt  time.Time `json:"-"`
+	Error      string    `json:"error,omitempty"`
 }
 
 type Task struct {
-	ID               string
-	ExpressionID     string
-	Operation        string
-	Arg1             float64
-	Arg2             float64
-	Result           *float64 // nil
-	CreatedAt        time.Time
-	DependsOnTaskIDs []string
+	ID               string    `json:"id"`
+	ExpressionID     string    `json:"expression_id"`
+	Operation        string    `json:"operation"`
+	Arg1             float64   `json:"arg1"`
+	Arg2             float64   `json:"arg2"`
+	Result           *float64  `json:"result,omitempty"`
+	Status           string    `json:"status"`
+	CreatedAt        time.Time `json:"created_at"`
+	UpdatedAt        time.Time `json:"updated_at"`
+	DependsOnTaskIDs []string  `json:"depends_on_task_ids,omitempty"`
 }
 
 type CalculateRequest struct {
@@ -60,12 +60,12 @@ type TaskResponse struct {
 }
 
 type User struct {
-	Login string `json:"login"`
+	Login    string `json:"login"`
 	Password string `json:"password"`
 }
 
 type RegisterRequest struct {
-	Login string `json:"login"`
+	Login    string `json:"login"`
 	Password string `json:"password"`
 }
 
@@ -75,5 +75,5 @@ type RegisterResponse struct {
 
 type AuthResponse struct {
 	status string `json:"status"`
-	token string `json:"token"`
+	token  string `json:"token"`
 }

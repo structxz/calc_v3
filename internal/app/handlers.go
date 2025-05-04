@@ -3,18 +3,20 @@ package server
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"time"
 
 	"distributed_calculator/internal/app/models"
+	"distributed_calculator/internal/auth"
 	"distributed_calculator/internal/constants"
 	"distributed_calculator/internal/db/sqlite"
 	"distributed_calculator/internal/jwt"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
-	"go.uber.org/zap"
 	"github.com/mattn/go-sqlite3"
+	"go.uber.org/zap"
 )
 
 func (s *Server) handleCalculate(w http.ResponseWriter, r *http.Request) {
@@ -50,11 +52,12 @@ func (s *Server) handleCalculate(w http.ResponseWriter, r *http.Request) {
 		UpdatedAt:  time.Now(),
 	}
 
-	if err := s.storage.SaveExpression(expr); err != nil {
-		s.logger.Error("Failed to save expression",
+	err = s.sqlite.SaveExpression(s.logger, expr)
+	if err != nil {
+		s.logger.Error(constants.ErrFailedSaveExpression,
 			zap.String(constants.FieldExpression, req.Expression),
 			zap.Error(err))
-		s.writeError(w, http.StatusInternalServerError, constants.ErrFailedProcessExpression)
+		s.writeError(w, http.StatusInternalServerError, constants.ErrFailedSaveExpression)
 		return
 	}
 
@@ -69,7 +72,7 @@ func (s *Server) handleCalculate(w http.ResponseWriter, r *http.Request) {
 				zap.String(constants.FieldExpression, expr.Expression),
 				zap.Error(err))
 
-			if updateErr := s.storage.UpdateExpressionError(expr.ID, err.Error()); updateErr != nil {
+			if updateErr := s.sqlite.UpdateExpressionError(s.logger, expr.ID, err.Error()); updateErr != nil {
 				s.logger.Error("Failed to update expression error status",
 					zap.String("id", expr.ID),
 					zap.Error(updateErr))
@@ -81,13 +84,16 @@ func (s *Server) handleCalculate(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleListExpressions(w http.ResponseWriter, _ *http.Request) {
-	exprPointers := s.storage.ListExpressions()
-	expressions := make([]models.Expression, len(exprPointers))
-	for i, expr := range exprPointers {
-		expressions[i] = *expr
+	expressions, err := s.sqlite.ListExpressions(s.logger)
+	if err != nil {
+		s.logger.Error("Failed to list expressions", zap.Error(err))
+		s.writeError(w, http.StatusInternalServerError, "failed to fetch expressions")
+		return
 	}
-	s.logger.Debug("Listing all expressions",
+
+	s.logger.Info("Listing all expressions",
 		zap.Int(constants.FieldCount, len(expressions)))
+
 	s.writeJSON(w, http.StatusOK, models.ExpressionsResponse{Expressions: expressions})
 }
 
@@ -95,109 +101,109 @@ func (s *Server) handleGetExpression(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
 
-	expr, err := s.storage.GetExpression(id)
+	expr, err := s.sqlite.GetExpression(s.logger, id)
 	if err != nil {
-		s.logger.Warn(constants.LogExpressionRetrieved,
-			zap.String("id", id))
+		s.logger.Error(constants.ErrFailedGetExpression,
+			zap.String("id", id),
+			zap.Error(err))
+		s.writeError(w, http.StatusInternalServerError, constants.ErrFailedGetExpression)
+		return
+	}
+	if expr == nil {
+		s.logger.Warn(constants.ErrExpressionNotFound,
+			zap.String(constants.FieldID, id))
 		s.writeError(w, http.StatusNotFound, constants.ErrExpressionNotFound)
 		return
 	}
 
-	s.logger.Debug(constants.LogExpressionRetrieved,
+	s.logger.Info("Expression retrieved",
 		zap.String("id", id),
-		zap.String(constants.FieldStatus, string(expr.Status)))
+		zap.String("status", string(expr.Status)),
+		zap.String("result", fmt.Sprintf("%v", *expr.Result)))
 	s.writeJSON(w, http.StatusOK, models.ExpressionResponse{Expression: *expr})
 }
 
 func (s *Server) handleGetTask(w http.ResponseWriter, _ *http.Request) {
-	task, err := s.storage.GetNextTask()
+	task, err := s.sqlite.GetNextTask(s.logger)
 	if err != nil {
 		s.logger.Debug(constants.LogNoTasksAvailable)
 		s.writeError(w, http.StatusNotFound, constants.ErrTaskNotFound)
 		return
 	}
 
-	s.logger.Debug(constants.LogTaskRetrieved,
+	if task == nil {
+    	s.logger.Debug(constants.LogNoTasksAvailable)
+    	s.writeError(w, http.StatusNotFound, "No task available")
+    	return
+	}
+
+	s.logger.Info(constants.LogTaskRetrieved,
 		zap.String(constants.FieldTaskID, task.ID),
 		zap.String(constants.FieldOperation, task.Operation))
 	s.writeJSON(w, http.StatusOK, models.TaskResponse{Task: *task})
 }
 
 func (s *Server) handleSubmitTaskResult(w http.ResponseWriter, r *http.Request) {
-	var result models.TaskResult
-	if err := json.NewDecoder(r.Body).Decode(&result); err != nil {
-		s.logger.Error(constants.LogFailedDecodeTask, zap.Error(err))
-		s.writeError(w, http.StatusUnprocessableEntity, constants.ErrInvalidRequestBody)
+	var req models.TaskResult
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		s.logger.Error("Failed to decode task result request", zap.Error(err))
+		s.writeError(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
 
-	if err := s.storage.UpdateTaskResult(result.ID, result.Result); err != nil {
-		s.logger.Error(constants.LogFailedUpdateTask, zap.String(constants.FieldTaskID, result.ID), zap.Error(err))
-		s.writeError(w, http.StatusNotFound, constants.ErrTaskNotFound)
+	if req.ID == "" {
+		s.writeError(w, http.StatusBadRequest, "missing task ID")
 		return
 	}
 
-	task, err := s.storage.GetTask(result.ID)
+	if err := s.sqlite.UpdateTaskResult(s.logger, req.ID, req.Result); err != nil {
+		s.logger.Error("Failed to update task result",
+			zap.String("task_id", req.ID),
+			zap.Error(err))
+		s.writeError(w, http.StatusInternalServerError, "failed to update task result")
+		return
+	}
+
+	s.logger.Info("Task result submitted",
+		zap.String("task_id", req.ID),
+		zap.Float64("result", req.Result))
+
+	exprID, err := s.sqlite.GetExpressionIDByTaskID(req.ID)
 	if err != nil {
-		s.logger.Error(constants.LogFailedGetTaskResult, zap.String(constants.FieldTaskID, result.ID), zap.Error(err))
-		s.writeError(w, http.StatusInternalServerError, constants.ErrFailedProcessResult)
+		s.logger.Error("Failed to get expression ID by task ID", zap.Error(err))
+		s.writeError(w, http.StatusInternalServerError, "failed to find expression")
 		return
 	}
 
-	dependentTasks := s.storage.GetTasksByDependency(result.ID)
-	for _, depTask := range dependentTasks {
-		depTaskCopy := *depTask
-		allDepsMet := true
-		for _, depID := range depTask.DependsOnTaskIDs {
-			depResult, err := s.storage.GetTaskResult(depID)
-			if err != nil {
-				allDepsMet = false
-				break
-			}
-			if depTask.Arg1 == 0 {
-				depTaskCopy.Arg1 = depResult
-			} else if depTask.Arg2 == 0 {
-				depTaskCopy.Arg2 = depResult
-			}
-		}
-		if allDepsMet && depTaskCopy.Arg1 != 0 && depTaskCopy.Arg2 != 0 {
-			if err := s.storage.SaveTask(&depTaskCopy); err != nil {
-				s.logger.Error("Failed to update dependent task",
-					zap.String(constants.FieldTaskID, depTaskCopy.ID),
-					zap.String(constants.FieldExpressionID, depTaskCopy.ExpressionID),
-					zap.Error(err))
-
-				// Optionally update the parent expression with an error status
-				if updateErr := s.storage.UpdateExpressionError(task.ExpressionID,
-					"Failed to update dependent task: "+err.Error()); updateErr != nil {
-					s.logger.Error("Failed to update expression error status",
-						zap.String(constants.FieldExpressionID, task.ExpressionID),
-						zap.Error(updateErr))
-				}
-			}
-		}
+	done, err := s.sqlite.AreAllTasksCompleted(s.logger, exprID)
+	if err != nil {
+		s.logger.Error("Failed to check if all tasks are complete", zap.Error(err))
+		s.writeError(w, http.StatusInternalServerError, "internal error")
+		return
 	}
 
-	allTasks := s.storage.GetTasksByExpressionID(task.ExpressionID)
-	allCompleted := true
-	for _, t := range allTasks {
-		if _, err := s.storage.GetTaskResult(t.ID); err != nil {
-			allCompleted = false
-			break
+	if done {
+		if err := s.sqlite.UpdateExpressionStatus(s.logger, exprID, models.StatusComplete); err != nil {
+			s.logger.Error("Failed to update expression status to done", zap.Error(err))
+			s.writeError(w, http.StatusInternalServerError, "failed to finalize expression")
+			return
 		}
-	}
-	if allCompleted {
-		if err := s.storage.UpdateExpressionResult(task.ExpressionID, result.Result); err != nil {
-			s.logger.Error(constants.LogFailedUpdateExpr, zap.String(constants.FieldExpressionID, task.ExpressionID), zap.Error(err))
-		}
+		
+		result, err := s.sqlite.GetFinalTaskResult(exprID)
+    	if err != nil {
+        	s.logger.Error("Failed to get final result", zap.Error(err))
+        	return
+    	}
+		
+    	if err := s.sqlite.UpdateExpressionResult(s.logger, exprID, result); err != nil {
+    	    s.logger.Error("Failed to update expression result", zap.Error(err))
+    	}
+
+		s.logger.Info("All tasks completed — expression marked as done",
+			zap.String("expression_id", exprID))
 	}
 
-	s.logger.Info(constants.LogTaskProcessed,
-		zap.String(constants.FieldTaskID, task.ID),
-		zap.String(constants.FieldExpressionID, task.ExpressionID),
-		zap.Float64(constants.FieldResult, result.Result))
-
-	w.WriteHeader(http.StatusOK)
+	s.writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
 func (s *Server) handleRegister(w http.ResponseWriter, r *http.Request) {
@@ -206,29 +212,29 @@ func (s *Server) handleRegister(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user := models.User{
+	hashedPassword, err := auth.HashPassword(request.Password)
+	if err != nil {
+		s.logger.Error(constants.ErrFailedHashPassword,
+			zap.Error(err))
+		s.writeError(w, http.StatusInternalServerError, constants.ErrFailedHashPassword)
+		return
+	}
+
+	user := &models.User{
 		Login:    request.Login,
-		Password: request.Password,
+		Password: hashedPassword,
 	}
 
-	db, ctx, err := sqlite.Open(s.logger)
+	storage, err := sqlite.New(s.logger)
 	if err != nil {
-		s.logger.Error(constants.ErrFailedSetDBConnection,
+		s.logger.Error(constants.ErrFailedOpenDB,
 			zap.Error(err))
-		s.writeError(w, http.StatusInternalServerError, constants.ErrFailedSetDBConnection)
+		s.writeError(w, http.StatusInternalServerError, constants.ErrFailedOpenDB)
 		return
 	}
-	defer db.Close()
+	defer storage.Close()
 
-	err = sqlite.CreateTables(ctx, db, s.logger)
-	if err != nil {
-		s.logger.Error(constants.ErrFailedCreateTables,
-			zap.Error(err))
-		s.writeError(w, http.StatusInternalServerError, constants.ErrFailedCreateTables)
-		return
-	}
-
-	err = sqlite.InsertUser(ctx, db, s.logger, &user)
+	err = storage.InsertUser(s.logger, user)
 	if err != nil {
 		if sqliteErr, ok := err.(sqlite3.Error); ok && sqliteErr.Code == sqlite3.ErrConstraint && sqliteErr.ExtendedCode == sqlite3.ErrConstraintUnique {
 			s.logger.Warn(constants.ErrAlreadyExistUserInDB)
@@ -241,10 +247,9 @@ func (s *Server) handleRegister(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// TODO: add info logging
 	s.logger.Info(constants.LogRegistered,
 		zap.String(constants.FieldLogin, user.Login),
-		zap.String(constants.FieldPassword, user.Password))
+		zap.String(constants.FieldPassword, hashedPassword))
 
 	w.WriteHeader(http.StatusOK)
 }
@@ -260,24 +265,31 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 		Password: request.Password,
 	}
 
-	db, ctx, err := sqlite.Open(s.logger)
+	storage, err := sqlite.New(s.logger)
 	if err != nil {
-		s.logger.Error(constants.ErrFailedSetDBConnection,
+		s.logger.Error(constants.ErrFailedOpenDB,
 			zap.Error(err))
-		s.writeError(w, http.StatusInternalServerError, constants.ErrFailedSetDBConnection)
+		s.writeError(w, http.StatusInternalServerError, constants.ErrFailedOpenDB)
 		return
 	}
-	defer db.Close()
+	defer storage.Close()
 
-	foundUser, err := sqlite.SelectUser(ctx, db, user.Login)
+	foundUser, err := storage.SelectUser(s.logger, user.Login)
 	if err != nil {
-		s.logger.Warn(constants.ErrNoUserFound,
+		s.logger.Error(constants.ErrFailedSelectUser,
 			zap.Error(err))
-		s.writeError(w, http.StatusUnauthorized, constants.ErrNoUserFound)
+		s.writeError(w, http.StatusInternalServerError, constants.ErrFailedSelectUser)
 		return
 	}
 
-	if (foundUser.Login != user.Login) || (foundUser.Password != user.Password) {
+	if (foundUser == nil) || (foundUser.Login != user.Login) || (!auth.CheckPassword(foundUser.Password, request.Password)) {
+		if foundUser == nil && err == nil {
+			s.logger.Error(constants.ErrInvalidLoginPassword,
+				zap.Error(err))
+			s.writeError(w, http.StatusUnauthorized, constants.ErrInvalidLoginPassword)
+			return
+		}
+
 		s.logger.Error(constants.ErrInvalidLoginPassword,
 			zap.Error(err))
 		s.writeError(w, http.StatusUnauthorized, constants.ErrInvalidLoginPassword)
@@ -300,16 +312,13 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 		SameSite: http.SameSiteStrictMode,
 	})
 
-	// TODO: add info logging
 	s.logger.Info(constants.LogAuthenticated,
 		zap.String(constants.FieldLogin, user.Login),
-		zap.String(constants.FieldPassword, user.Password),
+		zap.String(constants.FieldPassword, foundUser.Password),
 		zap.String(constants.FieldJWT, jwt))
 
 	w.WriteHeader(http.StatusOK)
 }
-
-
 
 func checkRightCreds(w http.ResponseWriter, r *http.Request, s *Server) (models.RegisterRequest, error) {
 	var request models.RegisterRequest

@@ -8,10 +8,11 @@ import (
 	"syscall"
 	"time"
 
-	"distributed_calculator/internal/constants"
 	"distributed_calculator/configs"
-	"distributed_calculator/internal/logger"
 	"distributed_calculator/internal/app"
+	"distributed_calculator/internal/constants"
+	"distributed_calculator/internal/db/sqlite"
+	"distributed_calculator/internal/logger"
 
 	"go.uber.org/zap"
 )
@@ -51,7 +52,14 @@ func main() {
 		log.Fatal(constants.ErrFailedInitConfig, zap.Error(err))
 	}
 
-	srv := server.New(cfg, log)
+	db, err := sqlite.New(log)
+	if err != nil {
+		log.Fatal(constants.ErrFailedOpenDB)
+	}
+	defer db.Close()
+	sqlite.RunMigrations(log, db.Db)
+
+	srv := server.New(cfg, log, db)
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()

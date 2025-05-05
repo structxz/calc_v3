@@ -11,7 +11,7 @@ import (
 	"distributed_calculator/internal/auth"
 	"distributed_calculator/internal/constants"
 	"distributed_calculator/internal/db/sqlite"
-	"distributed_calculator/internal/jwt"
+	"distributed_calculator/internal/jwtutil"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
@@ -132,9 +132,9 @@ func (s *Server) handleGetTask(w http.ResponseWriter, _ *http.Request) {
 	}
 
 	if task == nil {
-    	s.logger.Debug(constants.LogNoTasksAvailable)
-    	s.writeError(w, http.StatusNotFound, "No task available")
-    	return
+		s.logger.Debug(constants.LogNoTasksAvailable)
+		s.writeError(w, http.StatusNotFound, "No task available")
+		return
 	}
 
 	s.logger.Info(constants.LogTaskRetrieved,
@@ -188,16 +188,16 @@ func (s *Server) handleSubmitTaskResult(w http.ResponseWriter, r *http.Request) 
 			s.writeError(w, http.StatusInternalServerError, "failed to finalize expression")
 			return
 		}
-		
+
 		result, err := s.sqlite.GetFinalTaskResult(exprID)
-    	if err != nil {
-        	s.logger.Error("Failed to get final result", zap.Error(err))
-        	return
-    	}
-		
-    	if err := s.sqlite.UpdateExpressionResult(s.logger, exprID, result); err != nil {
-    	    s.logger.Error("Failed to update expression result", zap.Error(err))
-    	}
+		if err != nil {
+			s.logger.Error("Failed to get final result", zap.Error(err))
+			return
+		}
+
+		if err := s.sqlite.UpdateExpressionResult(s.logger, exprID, result); err != nil {
+			s.logger.Error("Failed to update expression result", zap.Error(err))
+		}
 
 		s.logger.Info("All tasks completed — expression marked as done",
 			zap.String("expression_id", exprID))
@@ -238,7 +238,7 @@ func (s *Server) handleRegister(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		if sqliteErr, ok := err.(sqlite3.Error); ok && sqliteErr.Code == sqlite3.ErrConstraint && sqliteErr.ExtendedCode == sqlite3.ErrConstraintUnique {
 			s.logger.Warn(constants.ErrAlreadyExistUserInDB)
-			s.writeError(w, http.StatusBadRequest, constants.ErrAlreadyExistsUserLogin)
+			s.writeError(w, http.StatusBadRequest, fmt.Sprintf("User with login %s already exists", user.Login))
 			return
 		}
 		s.logger.Error(constants.ErrFailedInsertUser,
@@ -260,11 +260,6 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user := models.User{
-		Login:    request.Login,
-		Password: request.Password,
-	}
-
 	storage, err := sqlite.New(s.logger)
 	if err != nil {
 		s.logger.Error(constants.ErrFailedOpenDB,
@@ -274,7 +269,7 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 	}
 	defer storage.Close()
 
-	foundUser, err := storage.SelectUser(s.logger, user.Login)
+	foundUser, err := storage.SelectUser(s.logger, request.Login)
 	if err != nil {
 		s.logger.Error(constants.ErrFailedSelectUser,
 			zap.Error(err))
@@ -282,8 +277,8 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if (foundUser == nil) || (foundUser.Login != user.Login) || (!auth.CheckPassword(foundUser.Password, request.Password)) {
-		if foundUser == nil && err == nil {
+	if (foundUser == nil) || (foundUser.Login != request.Login) || (!auth.CheckPassword(foundUser.Password, request.Password)) {
+		if foundUser == nil {
 			s.logger.Error(constants.ErrInvalidLoginPassword,
 				zap.Error(err))
 			s.writeError(w, http.StatusUnauthorized, constants.ErrInvalidLoginPassword)
@@ -296,7 +291,7 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	jwt, err := jwt.MakeJWT(s.logger, user.Login)
+	jwt, err := jwtutil.MakeJWT(request.Login)
 	if err != nil {
 		s.logger.Error(constants.ErrInvalidLoginPassword,
 			zap.Error(err))
@@ -308,16 +303,17 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 		Name:     "token",
 		Value:    jwt,
 		HttpOnly: true,
-		Secure:   true,
+		Secure:   false,
 		SameSite: http.SameSiteStrictMode,
+		Path:     "/",
 	})
 
 	s.logger.Info(constants.LogAuthenticated,
-		zap.String(constants.FieldLogin, user.Login),
+		zap.String(constants.FieldLogin, request.Login),
 		zap.String(constants.FieldPassword, foundUser.Password),
 		zap.String(constants.FieldJWT, jwt))
-
-	w.WriteHeader(http.StatusOK)
+	
+	s.writeJSON(w, http.StatusOK, map[string]string{"token": jwt})
 }
 
 func checkRightCreds(w http.ResponseWriter, r *http.Request, s *Server) (models.RegisterRequest, error) {

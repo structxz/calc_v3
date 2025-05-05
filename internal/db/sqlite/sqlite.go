@@ -58,10 +58,10 @@ func RunMigrations(logger *logger.Logger, db *sql.DB) error {
 
 	CREATE TABLE IF NOT EXISTS task_dependencies (
 		task_id TEXT NOT NULL,
-		dependency_id TEXT NOT NULL,
-		FOREIGN KEY (task_id) REFERENCES tasks(id),
-		FOREIGN KEY (dependency_id) REFERENCES tasks(id),
-		PRIMARY KEY (task_id, dependency_id)
+    	depends_on_task_id TEXT NOT NULL,
+    	PRIMARY KEY (task_id, depends_on_task_id),
+    	FOREIGN KEY (task_id) REFERENCES tasks(id),
+    	FOREIGN KEY (depends_on_task_id) REFERENCES tasks(id)
 	);	
 
 	CREATE TABLE IF NOT EXISTS users(
@@ -85,7 +85,6 @@ func (db *SQLiteStorage) Close() error {
 	return db.Db.Close()
 }
 
-// nullFloat возвращает sql.NullFloat64, где Valid == true только если arg не равен 0.
 func nullFloat(f float64) sql.NullFloat64 {
 	return sql.NullFloat64{
 		Float64: f,

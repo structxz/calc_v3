@@ -9,6 +9,7 @@ import (
 	"distributed_calculator/internal/constants"
 	"distributed_calculator/internal/db/sqlite"
 	"distributed_calculator/internal/logger"
+	"distributed_calculator/internal/middleware"
 
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
@@ -32,13 +33,21 @@ func New(cfg *configs.ServerConfig, log *logger.Logger, sqliteStorage *sqlite.SQ
 
 	router := mux.NewRouter()
 
-	api := router.PathPrefix("/api/v1").Subrouter()
-	api.HandleFunc("/calculate", s.handleCalculate).Methods(http.MethodPost)
-	api.HandleFunc("/expressions", s.handleListExpressions).Methods(http.MethodGet)
-	api.HandleFunc("/expressions/{id}", s.handleGetExpression).Methods(http.MethodGet)
-	api.HandleFunc("/register", s.handleRegister).Methods(http.MethodPost)
-	api.HandleFunc("/login", s.handleLogin).Methods(http.MethodPost)
 
+	// Public
+	public := router.PathPrefix("/api/v1").Subrouter()
+	public.HandleFunc("/register", s.handleRegister).Methods(http.MethodPost)
+	public.HandleFunc("/login", s.handleLogin).Methods(http.MethodPost)
+
+	// Protected
+	protected := router.PathPrefix("/api/v1").Subrouter()
+	protected.Use(middleware.AuthMiddleware(s.logger))
+	
+	protected.HandleFunc("/calculate", s.handleCalculate).Methods(http.MethodPost)
+	protected.HandleFunc("/expressions", s.handleListExpressions).Methods(http.MethodGet)
+	protected.HandleFunc("/expressions/{id}", s.handleGetExpression).Methods(http.MethodGet)
+
+	// Internal
 	internal := router.PathPrefix("/internal").Subrouter()
 	internal.HandleFunc("/task", s.handleGetTask).Methods(http.MethodGet)
 	internal.HandleFunc("/task", s.handleSubmitTaskResult).Methods(http.MethodPost)

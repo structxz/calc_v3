@@ -69,11 +69,4 @@ type RegisterRequest struct {
 	Password string `json:"password"`
 }
 
-type RegisterResponse struct {
-	status string `json:"status"`
-}
-
-type AuthResponse struct {
-	status string `json:"status"`
-	token  string `json:"token"`
-}
+type FieldUser string

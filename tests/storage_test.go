@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"distributed_calculator/internal/app/models"	
-	"distributed_calculator/internal/app/storage"	
+	"github.com/structxz/calc_v3/internal/app/models"	
+	"github.com/structxz/calc_v3/internal/db/sqlite"	
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

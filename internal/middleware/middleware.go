@@ -2,8 +2,8 @@ package middleware
 
 import (
 	"context"
-	"distributed_calculator/internal/jwtutil"
-	"distributed_calculator/internal/logger"
+	"github.com/structxz/calc_v3/internal/jwtutil"
+	"github.com/structxz/calc_v3/internal/logger"
 	"net/http"
 
 	"github.com/gorilla/mux"

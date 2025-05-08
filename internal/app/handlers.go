@@ -7,11 +7,11 @@ import (
 	"net/http"
 	"time"
 
-	"distributed_calculator/internal/app/models"
-	"distributed_calculator/internal/auth"
-	"distributed_calculator/internal/constants"
-	"distributed_calculator/internal/db/sqlite"
-	"distributed_calculator/internal/jwtutil"
+	"github.com/structxz/calc_v3/internal/app/models"
+	"github.com/structxz/calc_v3/internal/auth"
+	"github.com/structxz/calc_v3/internal/constants"
+	"github.com/structxz/calc_v3/internal/db/sqlite"
+	"github.com/structxz/calc_v3/internal/jwtutil"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"

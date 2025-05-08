@@ -7,7 +7,8 @@ import (
 )
 
 type ServerConfig struct {
-	Port              string // Port на котором будет прослушиваться сервер.
+	RestPort          string // Port на котором будет прослушиваться REST сервер.
+	GRPCPort          string // Port на котором будет прослушиваться gRPC сервер.
 	TimeAdditionMS    int64  // Время в миллисекундах для операций сложения.
 	TimeSubtractionMS int64  // Время в миллисекундах для операций вычитания.
 	TimeMultiplyMS    int64  // Время в миллисекундах для операций умножения.
@@ -35,10 +36,13 @@ func NewServerConfig() (*ServerConfig, error) {
 		return nil, fmt.Errorf("invalid TIME_DIVISIONS_MS: %w", err)
 	}
 
-	port := getEnvString("PORT", "8080")
+	restPort := getEnvString("REST_PORT", "8080")
+
+	grpcPort := getEnvString("GRPC_PORT", "50051")
 
 	return &ServerConfig{
-		Port:              port,
+		RestPort:          restPort,
+		GRPCPort:          grpcPort,
 		TimeAdditionMS:    timeAdd,
 		TimeSubtractionMS: timeSub,
 		TimeMultiplyMS:    timeMul,

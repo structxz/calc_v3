@@ -8,10 +8,10 @@ import (
 	"testing"
 	"time"
 
-	"distributed_calculator/configs"
-	"distributed_calculator/internal/logger"
-	"distributed_calculator/internal/app"
-	"distributed_calculator/internal/app/models"	
+	"github.com/structxz/calc_v3/configs"
+	server "github.com/structxz/calc_v3/internal/app"
+	"github.com/structxz/calc_v3/internal/app/models"
+	"github.com/structxz/calc_v3/internal/logger"
 
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
@@ -20,7 +20,7 @@ import (
 
 func setupTestServer(t *testing.T) (*server.Server, *mux.Router) {
 	cfg := &configs.ServerConfig{
-		Port:              "8080",
+		RestPort:          "8080",
 		TimeAdditionMS:    100,
 		TimeSubtractionMS: 100,
 		TimeMultiplyMS:    200,

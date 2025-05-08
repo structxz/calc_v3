@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"distributed_calculator/internal/constants"
+	"github.com/structxz/calc_v3/internal/constants"
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"

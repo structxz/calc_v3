@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"distributed_calculator/internal/constants"
+	"github.com/structxz/calc_v3/internal/constants"
 	"go.uber.org/zap"
 )
 
@@ -61,7 +61,7 @@ func (a *Agent) processTask(workerID int) error {
 
 	result := a.Calculate(task)
 
-	if err := a.sendResult(task.ID, result); err != nil {
+	if err := a.sendResult(task, result); err != nil {
 		return fmt.Errorf(constants.ErrFormatWithWrap, constants.LogFailedSendResult, err)
 	}
 

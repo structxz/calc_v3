@@ -69,6 +69,7 @@ const (
 	LogEmptyPasswordReceived      = "Empty password received"
 	LogRegistered                 = "Registration was successful"
 	LogAuthenticated              = "Authentication was successful"
+	LogFinalResultReady           = "Final result of expression is ready"
 )
 
 // HTTP headers and content types used in the application.

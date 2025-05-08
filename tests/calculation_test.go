@@ -3,7 +3,7 @@ package test
 import (
 	"testing"
 
-	"distributed_calculator/pkg/calculation"
+	"github.com/structxz/calc_v3/pkg/calculation"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

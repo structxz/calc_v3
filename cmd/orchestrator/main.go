@@ -8,62 +8,56 @@ import (
 	"syscall"
 	"time"
 
-	"distributed_calculator/configs"
-	"distributed_calculator/internal/app"
-	"distributed_calculator/internal/constants"
-	"distributed_calculator/internal/db/sqlite"
-	"distributed_calculator/internal/logger"
+	"github.com/structxz/calc_v3/configs"
+	"github.com/structxz/calc_v3/internal/constants"
+	"github.com/structxz/calc_v3/internal/db/sqlite"
+	"github.com/structxz/calc_v3/internal/logger"
+	"github.com/structxz/calc_v3/internal/app"
 
 	"go.uber.org/zap"
 )
 
 func main() {
-
+	// Логгер
 	opts := logger.DefaultOptions()
 	opts.LogDir = "logs/orchestrator"
 
 	log, err := logger.New(opts)
 	if err != nil {
-		_, printErr := fmt.Fprintf(os.Stderr, constants.ErrFailedInitLogger, err)
-		if printErr != nil {
-			_, writeErr := fmt.Fprintln(os.Stderr, "Failed to write to stderr:", printErr)
-			if writeErr != nil {
-				os.Exit(2)
-			}
-			os.Exit(2)
-		}
+		fmt.Fprintf(os.Stderr, constants.ErrFailedInitLogger, err)
 		os.Exit(1)
 	}
 	defer func() {
-		if syncErr := log.Sync(); syncErr != nil {
-			_, printErr := fmt.Fprintf(os.Stderr, constants.ErrFailedSyncLogger, syncErr)
-			if printErr != nil {
-				_, writeErr := fmt.Fprintln(os.Stderr, "Failed to write to stderr:", printErr)
-				if writeErr != nil {
-					os.Exit(2)
-				}
-				os.Exit(2)
-			}
+		if err := log.Sync(); err != nil {
+			fmt.Fprintf(os.Stderr, constants.ErrFailedSyncLogger, err)
 		}
 	}()
 
+	// Конфигурация
 	cfg, err := configs.NewServerConfig()
 	if err != nil {
 		log.Fatal(constants.ErrFailedInitConfig, zap.Error(err))
 	}
 
+	// Подключение к БД
 	db, err := sqlite.New(log)
 	if err != nil {
-		log.Fatal(constants.ErrFailedOpenDB)
+		log.Fatal(constants.ErrFailedOpenDB, zap.Error(err))
 	}
 	defer db.Close()
-	sqlite.RunMigrations(log, db.Db)
 
+	if err := sqlite.RunMigrations(log, db.Db); err != nil {
+		log.Fatal("Migration failed", zap.Error(err))
+	}
+
+	// Сервер
 	srv := server.New(cfg, log, db)
 
+	// Контекст завершения
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
+	// Запуск серверов
 	go func() {
 		if err := srv.Start(); err != nil {
 			log.Fatal(constants.ErrFailedStartServer, zap.Error(err))
@@ -72,7 +66,10 @@ func main() {
 
 	log.Info(constants.LogOrchestratorStarted)
 
+	// Ожидание завершения
 	<-ctx.Done()
+
+	log.Info("Shutdown signal received")
 
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()

@@ -2,8 +2,8 @@ package sqlite
 
 import (
 	"database/sql"
-	"distributed_calculator/internal/app/models"
-	"distributed_calculator/internal/logger"
+	"github.com/structxz/calc_v3/internal/app/models"
+	"github.com/structxz/calc_v3/internal/logger"
 	"errors"
 	"fmt"
 

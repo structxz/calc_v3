@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"distributed_calculator/internal/logger"
+	"github.com/structxz/calc_v3/internal/logger"
 
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"

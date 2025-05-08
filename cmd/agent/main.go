@@ -7,10 +7,10 @@ import (
 	"os/signal"
 	"syscall"
 
-	"distributed_calculator/internal/constants"
-	"distributed_calculator/configs"
-	"distributed_calculator/internal/logger"
-	"distributed_calculator/internal/worker"
+	"github.com/structxz/calc_v3/internal/constants"
+	"github.com/structxz/calc_v3/configs"
+	"github.com/structxz/calc_v3/internal/logger"
+	"github.com/structxz/calc_v3/internal/worker"
 
 	"go.uber.org/zap"
 )

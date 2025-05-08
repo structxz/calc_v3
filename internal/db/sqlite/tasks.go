@@ -2,9 +2,9 @@ package sqlite
 
 import (
 	"database/sql"
-	"distributed_calculator/internal/app/models"
-	"distributed_calculator/internal/constants"
-	"distributed_calculator/internal/logger"
+	"github.com/structxz/calc_v3/internal/app/models"
+	"github.com/structxz/calc_v3/internal/constants"
+	"github.com/structxz/calc_v3/internal/logger"
 	"fmt"
 	"time"
 
@@ -89,19 +89,6 @@ func (s *SQLiteStorage) GetNextTask(logger *logger.Logger) (*models.Task, error)
 
 	return &task, nil
 }
-
-// func (s *SQLiteStorage) CompleteTask(logger *logger.Logger, taskID string, result float64) error {
-// 	query := `
-// 		UPDATE tasks
-// 		SET result = ?, status = ?, updated_at = ?
-// 		WHERE id = ?`
-// 	_, err := s.Db.Exec(query, result, models.StatusComplete, time.Now(), taskID)
-// 	if err != nil {
-// 		logger.Error("Failed to update task", zap.Error(err))
-// 		return err
-// 	}
-// 	return nil
-// }
 
 // UpdateTaskResult обновляет результат выполнения задачи и статус
 func (s *SQLiteStorage) UpdateTaskResult(logger *logger.Logger, taskID string, result float64) error {

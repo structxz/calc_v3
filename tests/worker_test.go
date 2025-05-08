@@ -8,10 +8,10 @@ import (
 	"testing"
 	"time"
 
-	"distributed_calculator/configs"
-	"distributed_calculator/internal/logger"
-	"distributed_calculator/internal/worker"
-	"distributed_calculator/internal/app/models"
+	"github.com/structxz/calc_v3/configs"
+	"github.com/structxz/calc_v3/internal/logger"
+	"github.com/structxz/calc_v3/internal/worker"
+	"github.com/structxz/calc_v3/internal/app/models"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

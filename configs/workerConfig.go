@@ -43,7 +43,7 @@ func NewWorkerConfig() (*WorkerConfig, error) {
 
 	return &WorkerConfig{
 		ComputingPower:    power,
-		OrchestratorURL:   getWorkerEnvString("ORCHESTRATOR_URL", "http://localhost:8080"),
+		OrchestratorURL:   getWorkerEnvString("ORCHESTRATOR_URL", "localhost:50051"),
 		AdditionTimeMS:    timeAdd,
 		SubtractionTimeMS: timeSub,
 		MultiplyTimeMS:    timeMul,

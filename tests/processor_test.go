@@ -7,10 +7,10 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"distributed_calculator/configs"
-	"distributed_calculator/internal/logger"
-	"distributed_calculator/internal/app"
-	"distributed_calculator/internal/app/models"
+	"github.com/structxz/calc_v3/configs"
+	server "github.com/structxz/calc_v3/internal/app"
+	"github.com/structxz/calc_v3/internal/app/models"
+	"github.com/structxz/calc_v3/internal/logger"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -21,7 +21,7 @@ func setupTestServer2(t *testing.T) http.Handler {
 	assert.NoError(t, err)
 
 	config := &configs.ServerConfig{
-		Port:              "8080",
+		RestPort:          "8080",
 		TimeAdditionMS:    1000,
 		TimeSubtractionMS: 1000,
 		TimeMultiplyMS:    2000,

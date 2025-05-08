@@ -1,0 +1,13 @@
+syntax = "proto3";
+
+package github.com.structxz.calc;
+
+import "api/messages.proto";
+
+option go_package = "github.com/structxz/calc_v3/api;api";
+
+
+service Orchestrator {
+	rpc GetTask (AgentInfo) returns (TaskResponse);
+	rpc SubmitTaskResult (TaskResult) returns (SubmitResponse);
+}

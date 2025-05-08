@@ -1,7 +1,7 @@
 package sqlite
 
 import (
-	"distributed_calculator/internal/logger"
+	"github.com/structxz/calc_v3/internal/logger"
 
 	"go.uber.org/zap"
 )

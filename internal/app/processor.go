@@ -1,8 +1,8 @@
 package server
 
 import (
-	"distributed_calculator/internal/app/models"
-	"distributed_calculator/internal/constants"
+	"github.com/structxz/calc_v3/internal/app/models"
+	"github.com/structxz/calc_v3/internal/constants"
 	"fmt"
 	"strconv"
 	"strings"
@@ -247,22 +247,6 @@ func (s *Server) createTasks(exprID string, tokens []string) ([]*models.Task, er
 	}
 
 	return tasks, nil
-}
-
-
-func (s *Server) getOperationTime(op string) int64 {
-	switch op {
-	case "+":
-		return s.config.TimeAdditionMS
-	case "-":
-		return s.config.TimeSubtractionMS
-	case "*":
-		return s.config.TimeMultiplyMS
-	case "/":
-		return s.config.TimeDivisionMS
-	default:
-		return 100
-	}
 }
 
 func isOperator(token string) bool {

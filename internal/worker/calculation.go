@@ -1,8 +1,8 @@
 package worker
 
 import (
-	"distributed_calculator/internal/constants"
-	"distributed_calculator/internal/app/models"
+	"github.com/structxz/calc_v3/internal/app/models"
+	"github.com/structxz/calc_v3/internal/constants"
 
 	"go.uber.org/zap"
 )

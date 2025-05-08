@@ -1,72 +1,62 @@
 package worker
 
 import (
-	"bytes"
-	"encoding/json"
+	"context"
 	"fmt"
-	"net/http"
+	"time"
 
-	"distributed_calculator/internal/constants"
+	"github.com/structxz/calc_v3/pkg/api"
 
-	"distributed_calculator/internal/app/models"
-
-	"go.uber.org/zap"
+	"github.com/structxz/calc_v3/internal/app/models"
 )
 
 func (a *Agent) getTask() (*models.Task, error) {
-	resp, err := a.httpClient.Get(fmt.Sprintf("%s/internal/task", a.config.OrchestratorURL))
-	if err != nil {
-		return nil, err
-	}
-	defer func() {
-		if err := resp.Body.Close(); err != nil {
-			a.logger.Error(constants.ErrFailedCloseRespBody, zap.Error(err))
-		}
-	}()
+	ctx, cancel := context.WithTimeout(a.ctx, 3*time.Second)
+	defer cancel()
 
-	if resp.StatusCode == http.StatusNotFound {
+	resp, err := a.grpcClient.GetTask(ctx, &api.AgentInfo{
+		AgentId: a.ID,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("gRPC GetTask failed: %w", err)
+	}
+
+	if !resp.HasTask {
 		return nil, nil
 	}
 
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf(constants.ErrUnexpectedStatusCode, resp.StatusCode)
+	t := resp.Task
+
+	if len(t.Operands) < 2 {
+		return nil, fmt.Errorf("task has insufficient operands")
 	}
 
-	var taskResp models.TaskResponse
-	if err := json.NewDecoder(resp.Body).Decode(&taskResp); err != nil {
-		return nil, err
-	}
-
-	return &taskResp.Task, nil
+	return &models.Task{
+		ID:           t.Id,
+		ExpressionID: t.ExpressionId,
+		Operation:    t.Operation,
+		Arg1:         t.Operands[0],
+		Arg2: t.Operands[1],
+		Result: nil,
+		Status: "",
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+		DependsOnTaskIDs: t.DependsOn,
+	}, nil
 }
 
-func (a *Agent) sendResult(taskID string, result float64) error {
-	taskResult := models.TaskResult{
-		ID:     taskID,
+func (a *Agent) sendResult(task *models.Task, result float64) error {
+	ctx, cancel := context.WithTimeout(a.ctx, 3*time.Second)
+	defer cancel()
+
+	_, err := a.grpcClient.SubmitTaskResult(ctx, &api.TaskResult{
+		TaskId: task.ID,
+		ExpressionId: task.ExpressionID,
 		Result: result,
-	}
+	})
 
-	body, err := json.Marshal(taskResult)
 	if err != nil {
-		return err
-	}
-
-	resp, err := a.httpClient.Post(
-		fmt.Sprintf("%s/internal/task", a.config.OrchestratorURL),
-		constants.ContentTypeJSON,
-		bytes.NewBuffer(body),
-	)
-	if err != nil {
-		return err
-	}
-	defer func() {
-		if err := resp.Body.Close(); err != nil {
-			a.logger.Error(constants.ErrFailedCloseRespBody, zap.Error(err))
-		}
-	}()
-
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf(constants.ErrUnexpectedStatusCode, resp.StatusCode)
+		return fmt.Errorf("gRPC SubmitTaskResult failed: %w", err)
 	}
 
 	return nil

@@ -75,20 +75,16 @@ project-root/
 #### Запуск
 ###### **Соберите контейнеры и запустите их:**
    ```sh
-    docker-compose up -d --build
+    docker compose up --build
    ```
-   ```sh
-   docker-compose up -d --scale agent=x
-   ```
-   x - параметр, который вы сами задаете, обозначающий кол-во агентов 
 
 #### Остановка
    ```sh
-   docker-compose stop
+   docker compose stop
    ```
 #### Удаление
 ```sh
-docker-compose down
+docker compose down
 ```
 
 

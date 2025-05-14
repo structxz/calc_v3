@@ -28,5 +28,15 @@ LOCAL_BIN := $(CURDIR)/bin
 .tidy: 
 	go mod tidy
 
+.run-orchestrator:
+	@go run ./cmd/orchestrator/main.go
+
+.run-agent:
+	@go run ./cmd/agent/main.go
+
 # Генерация кода из protobuf
 generate: .bin-deps .protoc-generate .tidy
+
+orchestrator: .run-orchestrator
+
+agent: .run-a

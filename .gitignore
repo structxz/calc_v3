@@ -1,6 +1,6 @@
 # File created using '.gitignore Generator' for Visual Studio Code: https://bit.ly/vscode-gig
-# Created by https://www.toptal.com/developers/gitignore/api/windows,visualstudiocode,macos,goland,go,cmake,linux
-# Edit at https://www.toptal.com/developers/gitignore?templates=windows,visualstudiocode,macos,goland,go,cmake,linux
+# Created by https://www.toptal.com/developers/gitignore/api/windows,visualstudiocode,macos,linux,goland,go,cmake,data,database
+# Edit at https://www.toptal.com/developers/gitignore?templates=windows,visualstudiocode,macos,linux,goland,go,cmake,data,database
 
 ### CMake ###
 CMakeLists.txt.user
@@ -20,6 +20,30 @@ CMakeUserPresets.json
 
 # External projects
 *-prefix/
+
+### Data ###
+*.csv
+*.dat
+*.efx
+*.gbr
+*.key
+*.pps
+*.ppt
+*.pptx
+*.sdf
+*.tax2010
+*.vcf
+*.xml
+
+### Database ###
+*.accdb
+*.db
+*.dbf
+*.mdb
+*.pdb
+*.sqlite3
+*.db-shm
+*.db-wal
 
 ### Go ###
 # If you prefer the allow list template instead of the deny list, see community template:
@@ -249,7 +273,7 @@ $RECYCLE.BIN/
 # Windows shortcuts
 *.lnk
 
-# End of https://www.toptal.com/developers/gitignore/api/windows,visualstudiocode,macos,goland,go,cmake,linux
+# End of https://www.toptal.com/developers/gitignore/api/windows,visualstudiocode,macos,linux,goland,go,cmake,data,database
 
 # Custom rules (everything added below won't be overriden by 'Generate .gitignore File' if you use 'Update' option)
 

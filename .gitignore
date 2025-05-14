@@ -2,6 +2,8 @@
 # Created by https://www.toptal.com/developers/gitignore/api/windows,visualstudiocode,macos,linux,goland,go,cmake,data,database
 # Edit at https://www.toptal.com/developers/gitignore?templates=windows,visualstudiocode,macos,linux,goland,go,cmake,data,database
 
+.env
+
 ### CMake ###
 CMakeLists.txt.user
 CMakeCache.txt
@@ -203,7 +205,8 @@ fabric.properties
 .LSOverride
 
 # Icon must end with two \r
-Icon
+Icon
+
 
 # Thumbnails
 ._*

@@ -11,7 +11,6 @@ import (
 	"go.uber.org/zap"
 )
 
-// SaveTask - сохраняет задачу в таблицу tasks
 func (s *SQLiteStorage) SaveTask(logger *logger.Logger, task *models.Task) error {
 	query := `INSERT INTO tasks (id, expression_id, operation, arg1, arg2, result, status, created_at, updated_at)
 	          VALUES (?, ?, ?, ?, ?, NULL, ?, ?, ?)`
@@ -32,7 +31,6 @@ func (s *SQLiteStorage) SaveTask(logger *logger.Logger, task *models.Task) error
 }
 
 
-// UpdateTaskStatus - обновляет статус задачи
 func (s *SQLiteStorage) UpdateTaskStatus(logger *logger.Logger, id, status string) error {
 	query := `UPDATE tasks SET status = ?, updated_at = ? WHERE id = ?`
 	_, err := s.Db.Exec(query, status, time.Now(), id)
@@ -45,9 +43,7 @@ func (s *SQLiteStorage) UpdateTaskStatus(logger *logger.Logger, id, status strin
 }
 
 
-// GetNextTask извлекает следующую задачу с состоянием PENDING и всеми зависимостями в статусе COMPLETED.
 func (s *SQLiteStorage) GetNextTask(logger *logger.Logger) (*models.Task, error) {
-	// SQL-запрос для получения задачи, которая не имеет незавершённых зависимостей.
 	query := `
 		SELECT id, expression_id, operation, arg1, arg2, status, created_at, updated_at
 		FROM tasks
@@ -74,15 +70,12 @@ func (s *SQLiteStorage) GetNextTask(logger *logger.Logger) (*models.Task, error)
 	)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			// Если задачи нет — возвращаем nil.
 			return nil, nil
 		}
-		// Возвращаем ошибку, если есть проблемы с запросом.
 		logger.Error(fmt.Sprintf("failed to get next task: %v", err))
 		return nil, fmt.Errorf("failed to get next task: %w", err)
 	}
 
-	// Логируем, что мы нашли задачу для выполнения.
 	logger.Info(constants.LogTaskRetrieved,
 		zap.String(constants.FieldTaskID, task.ID),
 		zap.String(constants.FieldOperation, task.Operation))
@@ -90,7 +83,6 @@ func (s *SQLiteStorage) GetNextTask(logger *logger.Logger) (*models.Task, error)
 	return &task, nil
 }
 
-// UpdateTaskResult обновляет результат выполнения задачи и статус
 func (s *SQLiteStorage) UpdateTaskResult(logger *logger.Logger, taskID string, result float64) error {
 	query := `UPDATE tasks SET result = ?, status = 'done', updated_at = CURRENT_TIMESTAMP WHERE id = ?`
 	_, err := s.Db.Exec(query, result, taskID)
@@ -100,7 +92,6 @@ func (s *SQLiteStorage) UpdateTaskResult(logger *logger.Logger, taskID string, r
 	return err
 }
 
-// AreAllTasksCompleted проверяет, выполнены ли все задачи выражения
 func (s *SQLiteStorage) AreAllTasksCompleted(logger *logger.Logger, exprID string) (bool, error) {
 	query := `SELECT COUNT(*) FROM tasks WHERE expression_id = ? AND status != 'done'`
 	var count int

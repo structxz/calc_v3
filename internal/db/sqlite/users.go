@@ -30,7 +30,6 @@ func (s *SQLiteStorage) SelectUser(logger *logger.Logger, login string) (*models
 	return &user, nil
 }
 
-// InsertUser вставляет нового пользователя
 func (s *SQLiteStorage) InsertUser(log *logger.Logger, user *models.User) error {
 	const query = `INSERT INTO users (login, password) VALUES (?, ?)`
 

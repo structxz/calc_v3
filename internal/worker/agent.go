@@ -27,7 +27,6 @@ type Agent struct {
 	ID         string
 }
 
-// New создает нового агента.
 func New(cfg *configs.WorkerConfig, log *logger.Logger) *Agent {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &Agent{
@@ -39,7 +38,6 @@ func New(cfg *configs.WorkerConfig, log *logger.Logger) *Agent {
 	}
 }
 
-// Start запускает агента
 func (a *Agent) Start() error {
 	a.logger.Info("Connecting to orchestrator via gRPC")
 	
@@ -68,7 +66,6 @@ func (a *Agent) Start() error {
 	return nil
 }
 
-// Stop останавливает.
 func (a *Agent) Stop() {
 	a.cancel()
 	a.wg.Wait()

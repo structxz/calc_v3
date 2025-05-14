@@ -8,7 +8,6 @@ import (
 	"go.uber.org/zap"
 )
 
-// worker  представляет собой горутину вычислений.
 func (a *Agent) worker(id int) {
 	defer a.wg.Done()
 
@@ -27,7 +26,6 @@ func (a *Agent) worker(id int) {
 	}
 }
 
-// processTask обрабатывает одну задачу.
 func (a *Agent) processTask(workerID int) error {
 	task, err := a.getTask()
 	if err != nil {

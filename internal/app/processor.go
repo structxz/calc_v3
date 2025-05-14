@@ -13,14 +13,12 @@ import (
 )
 
 func (s *Server) processExpression(expr *models.Expression) error {
-	// Парсим выражение
 	tokens, err := s.parseExpression(expr.Expression)
 	if err != nil {
 		s.logger.Error(constants.ErrFailedParseExpression,
 			zap.String("expression", expr.Expression),
 			zap.Error(err))
 
-		// Обновляем статус выражения как failed
 		if updateErr := s.sqlite.UpdateExpressionError(s.logger, expr.ID, err.Error()); updateErr != nil {
 			s.logger.Error(constants.ErrFailedUpdateExpressionErrorStatus,
 				zap.Error(updateErr))
@@ -28,18 +26,15 @@ func (s *Server) processExpression(expr *models.Expression) error {
 		return err
 	}
 
-	// Обновляем статус выражения на "progress"
 	if err := s.sqlite.UpdateExpressionStatus(s.logger, expr.ID, models.StatusProgress); err != nil {
 		s.logger.Error(constants.ErrFailedUpdateExpressionStatus, zap.Error(err))
 		return err
 	}
 
-	// Создаём задачи (в памяти, без сохранения)
 	tasks, err := s.createTasks(expr.ID, tokens)
 	if err != nil {
 		s.logger.Error(constants.ErrFailedCreateTasks, zap.Error(err))
 
-		// Обновляем статус выражения как failed
 		if updateErr := s.sqlite.UpdateExpressionError(s.logger, expr.ID, err.Error()); updateErr != nil {
 			s.logger.Error(constants.ErrFailedUpdateExpressionErrorStatus,
 				zap.Error(updateErr))
@@ -47,15 +42,12 @@ func (s *Server) processExpression(expr *models.Expression) error {
 		return err
 	}
 
-	// Сохраняем задачи и их зависимости в базу
 	for _, task := range tasks {
-		// Сохраняем саму задачу
 		if err := s.sqlite.SaveTask(s.logger, task); err != nil {
 			s.logger.Error(constants.ErrFailedSaveTask, zap.Error(err))
 			return fmt.Errorf("failed to save task: %w", err)
 		}
 
-		// Сохраняем зависимости задачи
 		for _, depID := range task.DependsOnTaskIDs {
 			if err := s.sqlite.SaveTaskDependencies(s.logger, task.ID, depID); err != nil {
 				s.logger.Error(constants.ErrFailedSaveTaskDependency,
@@ -215,7 +207,7 @@ func (s *Server) createTasks(exprID string, tokens []string) ([]*models.Task, er
 				ID:           uuid.New().String(),
 				ExpressionID: exprID,
 				Operation:    token,
-				Status:       models.StatusPending, // важно!
+				Status:       models.StatusPending,
 				CreatedAt:    time.Now(),
 				UpdatedAt:    time.Now(),
 			}

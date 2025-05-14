@@ -26,7 +26,6 @@ func MakeJWT(login string) (string, error) {
 func ValidateJWT(r *http.Request) (string, error) {
 	var tokenStr string
 
-	// 1. Check Auth header
 	authHeader := r.Header.Get("Authorization")
 	if authHeader != "" {
 		parts := strings.Split(authHeader, " ")
@@ -35,7 +34,6 @@ func ValidateJWT(r *http.Request) (string, error) {
 		}
 	}
 
-	// 2 If not - check cookie
 	if tokenStr == "" {
 		cookie, err := r.Cookie("token")
 		if err == nil {

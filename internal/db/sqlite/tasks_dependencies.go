@@ -16,7 +16,6 @@ func (s *SQLiteStorage) SaveTaskDependencies(logger *logger.Logger, taskID strin
 }
 
 
-// GetTaskDependencies получает зависимости для задачи по ее ID.
 func (s *SQLiteStorage) GetTaskDependencies(logger *logger.Logger, taskID string) ([]string, error) {
     query := `SELECT dependency_id FROM task_dependencies WHERE task_id = ?`
     rows, err := s.Db.Query(query, taskID)
@@ -39,7 +38,6 @@ func (s *SQLiteStorage) GetTaskDependencies(logger *logger.Logger, taskID string
     return dependencies, nil
 }
 
-// DeleteTaskDependency удаляет зависимость между задачами.
 func (s *SQLiteStorage) DeleteTaskDependency(logger *logger.Logger, taskID string, dependencyID string) error {
     query := `DELETE FROM task_dependencies WHERE task_id = ? AND dependency_id = ?`
     if _, err := s.Db.Exec(query, taskID, dependencyID); err != nil {

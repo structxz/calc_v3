@@ -15,7 +15,7 @@ func MakeJWT(login string) (string, error) {
 
 	claims := jwt.MapClaims{
 		"sub": login,
-		"exp": time.Now().Add(2 * time.Minute).Unix(),
+		"exp": time.Now().Add(10 * time.Minute).Unix(),
 		"iat": time.Now().Unix(),
 	}
 

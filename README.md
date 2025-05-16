@@ -61,7 +61,7 @@ project-root/
 
 1. **Склонируйте репозиторий:**
    ```sh
-   git clone github.com/structxz/calc_v3
+   git clone https://github.com/structxz/calc_v3
    cd calc_v3
    ```
 2. **Установите зависимости**
